@@ -7,37 +7,12 @@ using Dapper;
 
 namespace Query
 {
-    public class Sql
+    public static class Sql
     {
-        private SqlConnection conn = new SqlConnection();
-        private SqlCommand cmd = new SqlCommand();
-        private string connString = "";
-
-        public Sql(string connectionString)
-        {
-            connString = connectionString;
-        }
+        public static string connectionString;
 
 
-        private void Start()
-        {
-            if (conn.State == System.Data.ConnectionState.Closed)
-            {
-                conn.ConnectionString = connString;
-                conn.Open();
-                cmd.Connection = conn;
-            }
-        }
-
-        public void Close()
-        {
-            if (conn.State != System.Data.ConnectionState.Closed)
-            {
-                conn.Close();
-            }
-        }
-
-        private string GetStoredProc(string storedproc, Dictionary<string, object> parameters = null)
+        private static string GetStoredProc(string storedproc, Dictionary<string, object> parameters = null)
         {
             var sql = new StringBuilder("EXEC " + storedproc);
             if (parameters != null)
@@ -52,7 +27,7 @@ namespace Query
             return sql.ToString();
         }
 
-        private List<SqlParameter> GetSqlParameters(Dictionary<string, object> parameters = null)
+        private static List<SqlParameter> GetSqlParameters(Dictionary<string, object> parameters = null)
         {
             var parms = new List<SqlParameter>();
             foreach (var parm in parameters)
@@ -62,60 +37,36 @@ namespace Query
             return parms;
         }
 
-        public SqlDataReader ExecuteReader(string storedproc, Dictionary<string, object> parameters = null)
+        public static void ExecuteNonQuery(string storedproc, Dictionary<string, object> parameters = null)
         {
-            Start();
-            cmd.Parameters.Clear();
-            cmd.CommandText = GetStoredProc(storedproc, parameters);
-            try
+            using(SqlConnection conn = new SqlConnection(connectionString))
             {
-                if (parameters != null) { GetSqlParameters(parameters).ForEach(a => cmd.Parameters.Add(a)); }
-                return cmd.ExecuteReader();  //developer must manually close connection within connection pool
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
-
-        public void ExecuteNonQuery(string storedproc, Dictionary<string, object> parameters = null)
-        {
-            Start();
-            cmd.Parameters.Clear();
-            cmd.CommandText = GetStoredProc(storedproc, parameters);
-            try
-            {
-                if (parameters != null) { GetSqlParameters(parameters).ForEach(a => cmd.Parameters.Add(a)); }
-                cmd.ExecuteNonQuery();
-                Close(); //make sure to close connection within connection pool
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
-
-        public T ExecuteScalar<T>(string storedproc, Dictionary<string, object> parameters = null)
-        {
-            Start();
-            cmd.Parameters.Clear();
-            cmd.CommandText = GetStoredProc(storedproc, parameters);
-            try
-            {
+                var cmd = new SqlCommand();
+                cmd.Connection = conn;
+                cmd.CommandText = GetStoredProc(storedproc, parameters);
                 if (parameters != null) { cmd.Parameters.AddRange(GetSqlParameters(parameters).ToArray()); }
-                var result = (T)cmd.ExecuteScalar();
-                Close(); //make sure to close connection within connection pool
-                return result;
+                cmd.Connection.Open();
+                cmd.ExecuteNonQuery();
             }
-            catch (Exception ex)
+            
+        }
+
+        public static T ExecuteScalar<T>(string storedproc, Dictionary<string, object> parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionString))
             {
-                throw ex;
+                var cmd = new SqlCommand();
+                cmd.Connection = conn;
+                cmd.CommandText = GetStoredProc(storedproc, parameters);
+                if (parameters != null) { cmd.Parameters.AddRange(GetSqlParameters(parameters).ToArray()); }
+                cmd.Connection.Open();
+                return (T)cmd.ExecuteScalar();
             }
         }
 
-        public async Task<int> ExecuteNonQueryAsync(string storedproc, Dictionary<string, object> parameters = null)
+        public static async Task<int> ExecuteNonQueryAsync(string storedproc, Dictionary<string, object> parameters = null)
         {
-            using (var newConnection = new SqlConnection(connString))
+            using (var newConnection = new SqlConnection(connectionString))
             {
                 using (var newCommand = new SqlCommand(GetStoredProc(storedproc, parameters), newConnection))
                 {
@@ -134,19 +85,22 @@ namespace Query
             }
         }
 
-        public List<T> Populate<T>(string storedproc, Dictionary<string, object> parameters = null)
+        public static List<T> Populate<T>(string storedproc, Dictionary<string, object> parameters = null)
         {
-            Start();
-            var results = conn.Query<T>(GetStoredProc(storedproc, parameters), parameters).AsList<T>();
-            Close(); //make sure to close connection within connection pool
-            return results;
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                return conn.Query<T>(GetStoredProc(storedproc, parameters), parameters).AsList<T>();
+            }
         }
 
-        public SqlMapper.GridReader PopulateMultiple(string storedproc, Dictionary<string, object> parameters = null)
+        public static SqlMapper.GridReader PopulateMultiple(string storedproc, Dictionary<string, object> parameters = null)
         {
-            Start();
-            //developer must manually close connection within connection pool
-            return conn.QueryMultiple(GetStoredProc(storedproc, parameters), parameters);
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                return conn.QueryMultiple(GetStoredProc(storedproc, parameters), parameters);
+            }
         }
     }
 }
