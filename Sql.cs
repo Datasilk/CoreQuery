@@ -20,7 +20,14 @@ namespace Query
                 var x = 0;
                 foreach (var parm in parameters)
                 {
-                    sql.Append(" " + (x > 0 ? "," : "") + "@" + parm.Key + "=@" + parm.Key);
+                    if(parm.Value == null)
+                    {
+                        sql.Append(" " + (x > 0 ? "," : "") + "@" + parm.Key + "=NULL");
+                    }
+                    else
+                    {
+                        sql.Append(" " + (x > 0 ? "," : "") + "@" + parm.Key + "=@" + parm.Key);
+                    }
                     x++;
                 }
             }
@@ -32,7 +39,7 @@ namespace Query
             var parms = new List<SqlParameter>();
             foreach (var parm in parameters)
             {
-                parms.Add(new SqlParameter("@" + parm.Key, parm.Value));
+                parms.Add(new SqlParameter("@" + parm.Key, parm.Value ?? DBNull.Value));
             }
             return parms;
         }
