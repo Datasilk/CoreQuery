@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Data.SqlClient;
-using System.Threading.Tasks;
 using Dapper;
 
 namespace Query
