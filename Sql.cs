@@ -64,7 +64,8 @@ namespace Query
             var parms = new List<SqlParameter>();
             foreach (var parm in parameters)
             {
-                parms.Add(new SqlParameter("@" + parm.Key, parm.Value));
+                var param = new SqlParameter("@" + parm.Key, parm.Value == null ? DBNull.Value : parm.Value);
+                parms.Add(param);
             }
             return parms;
         }
