@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Data.SqlClient;
+using System.Data;
 using Dapper;
 
 namespace Query
@@ -10,9 +11,16 @@ namespace Query
     {
         private SqlConnection conn;
         private string query;
-        private Dictionary<string, object> parameters;
+        private dynamic parameters { get; set; }
 
-        public Connection(string storedProcedure, Dictionary<string, object> parameters)
+        public Connection(string storedProcedure)
+        {
+            conn = new SqlConnection(Sql.connectionString);
+            query = GetStoredProc(storedProcedure);
+            conn.Open();
+        }
+
+        public Connection(string storedProcedure, dynamic parameters)
         {
             conn = new SqlConnection(Sql.connectionString);
             query = GetStoredProc(storedProcedure, parameters);
@@ -22,57 +30,53 @@ namespace Query
 
         public void ExecuteNonQuery()
         {
-            var cmd = new SqlCommand(query, conn);
-            if (parameters != null) { cmd.Parameters.AddRange(GetSqlParameters(parameters).ToArray()); }
-            cmd.ExecuteNonQuery();
+            var cmd = new CommandDefinition(query, parameters);
+            conn.Execute(cmd);
         }
 
         public T ExecuteScalar<T>()
         {
-            var cmd = new SqlCommand(query, conn);
-            if (parameters != null) { cmd.Parameters.AddRange(GetSqlParameters(parameters).ToArray()); }
-            return (T)cmd.ExecuteScalar();
+            var cmd = new CommandDefinition(query, parameters);
+            return (T)conn.ExecuteScalar(cmd);
         }
-        
+
         public List<T> Query<T>()
         {
-            return conn.Query<T>(query, parameters).AsList<T>();
+            var cmd = new CommandDefinition(query, parameters);
+            return conn.Query<T>(cmd).AsList<T>();
         }
 
         public SqlMapper.GridReader PopulateMultiple()
         {
-            return conn.QueryMultiple(query, parameters);
+            var cmd = new CommandDefinition(query, parameters);
+            return conn.QueryMultiple(cmd);
         }
 
-        private static string GetStoredProc(string storedproc, Dictionary<string, object> parameters = null)
+        private static string GetStoredProc(string storedproc)
+        {
+            var sql = new StringBuilder("EXEC " + storedproc);
+            return sql.ToString();
+        }
+
+        private static string GetStoredProc(string storedproc, dynamic parameters = null)
         {
             var sql = new StringBuilder("EXEC " + storedproc);
             if (parameters != null)
             {
+                var properties = parameters.GetType().GetProperties();
                 var x = 0;
-                foreach (var parm in parameters)
+                foreach (var prop in properties)
                 {
-                    sql.Append(" " + (x > 0 ? "," : "") + "@" + parm.Key + "=@" + parm.Key);
+                    sql.Append(" " + (x > 0 ? "," : "") + "@" + prop.Name + "=@" + prop.Name);
                     x++;
                 }
             }
             return sql.ToString();
         }
 
-        private static List<SqlParameter> GetSqlParameters(Dictionary<string, object> parameters = null)
-        {
-            var parms = new List<SqlParameter>();
-            foreach (var parm in parameters)
-            {
-                var param = new SqlParameter("@" + parm.Key, parm.Value == null ? DBNull.Value : parm.Value);
-                parms.Add(param);
-            }
-            return parms;
-        }
-
         public void Dispose()
         {
-            if(conn.State != System.Data.ConnectionState.Closed)
+            if (conn.State != ConnectionState.Closed)
             {
                 conn.Close();
             }
@@ -84,7 +88,15 @@ namespace Query
     {
         public static string connectionString;
 
-        public static void ExecuteNonQuery(string storedproc, Dictionary<string, object> parameters = null)
+        public static void ExecuteNonQuery(string storedproc)
+        {
+            using (var sql = new Connection(storedproc))
+            {
+                sql.ExecuteNonQuery();
+            }
+        }
+
+        public static void ExecuteNonQuery(string storedproc, dynamic parameters = null)
         {
             using (var sql = new Connection(storedproc, parameters))
             {
@@ -92,7 +104,15 @@ namespace Query
             }
         }
 
-        public static T ExecuteScalar<T>(string storedproc, Dictionary<string, object> parameters = null)
+        public static T ExecuteScalar<T>(string storedproc)
+        {
+            using (var sql = new Connection(storedproc))
+            {
+                return (T)sql.ExecuteScalar<T>();
+            }
+        }
+
+        public static T ExecuteScalar<T>(string storedproc, dynamic parameters = null)
         {
             using (var sql = new Connection(storedproc, parameters))
             {
@@ -100,11 +120,19 @@ namespace Query
             }
         }
 
-        public static List<T> Populate<T>(string storedproc, Dictionary<string, object> parameters = null)
+        public static List<T> Populate<T>(string storedproc)
+        {
+            using (var sql = new Connection(storedproc))
+            {
+                return sql.Query<T>();
+            }
+        }
+
+        public static List<T> Populate<T>(string storedproc, dynamic parameters = null)
         {
             using (var sql = new Connection(storedproc, parameters))
             {
-                    return sql.Query<T>();
+                return sql.Query<T>();
             }
         }
     }
