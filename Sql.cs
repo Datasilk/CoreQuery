@@ -13,16 +13,17 @@ namespace Query
         private string query;
         private dynamic parameters { get; set; }
 
+
         public Connection(string storedProcedure)
         {
-            conn = new SqlConnection(Sql.connectionString);
+            conn = new SqlConnection(Sql.ConnectionString);
             query = GetStoredProc(storedProcedure);
             conn.Open();
         }
 
         public Connection(string storedProcedure, dynamic parameters)
         {
-            conn = new SqlConnection(Sql.connectionString);
+            conn = new SqlConnection(Sql.ConnectionString);
             query = GetStoredProc(storedProcedure, parameters);
             this.parameters = parameters;
             conn.Open();
@@ -86,7 +87,7 @@ namespace Query
 
     public static class Sql
     {
-        public static string connectionString;
+        public static string ConnectionString;
 
         public static void ExecuteNonQuery(string storedproc)
         {
