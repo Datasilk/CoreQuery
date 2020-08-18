@@ -81,7 +81,7 @@ namespace Query
             {
                 conn.Close();
             }
-            conn.Dispose();
+            //conn.Dispose();
         }
     }
 
