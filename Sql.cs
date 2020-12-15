@@ -14,18 +14,14 @@ namespace Query
         private dynamic parameters { get; set; }
 
 
-        public Connection(string storedProcedure)
+        public Connection(string storedproc, dynamic parameters = null)
         {
             conn = new SqlConnection(Sql.ConnectionString);
-            query = GetStoredProc(storedProcedure);
-            conn.Open();
-        }
-
-        public Connection(string storedProcedure, dynamic parameters)
-        {
-            conn = new SqlConnection(Sql.ConnectionString);
-            query = GetStoredProc(storedProcedure, parameters);
-            this.parameters = parameters;
+            query = GetStoredProc(storedproc, parameters);
+            if(parameters != null)
+            {
+                this.parameters = parameters;
+            }
             conn.Open();
         }
 
@@ -89,14 +85,6 @@ namespace Query
     {
         public static string ConnectionString;
 
-        public static void ExecuteNonQuery(string storedproc)
-        {
-            using (var sql = new Connection(storedproc))
-            {
-                sql.ExecuteNonQuery();
-            }
-        }
-
         public static void ExecuteNonQuery(string storedproc, dynamic parameters = null)
         {
             using (var sql = new Connection(storedproc, parameters))
@@ -105,27 +93,11 @@ namespace Query
             }
         }
 
-        public static T ExecuteScalar<T>(string storedproc)
-        {
-            using (var sql = new Connection(storedproc))
-            {
-                return (T)sql.ExecuteScalar<T>();
-            }
-        }
-
         public static T ExecuteScalar<T>(string storedproc, dynamic parameters = null)
         {
             using (var sql = new Connection(storedproc, parameters))
             {
                 return (T)sql.ExecuteScalar<T>();
-            }
-        }
-
-        public static List<T> Populate<T>(string storedproc)
-        {
-            using (var sql = new Connection(storedproc))
-            {
-                return sql.Query<T>();
             }
         }
 
