@@ -9,19 +9,15 @@ namespace Query.Common
         public static XmlDocument ToXmlDocument(object input)
         {
             XmlSerializer ser = new XmlSerializer(input.GetType());
-
             XmlDocument xd = null;
 
-            using (MemoryStream memStm = new MemoryStream())
+            using (var sw = new StringWriter())
             {
-                ser.Serialize(memStm, input);
-
-                memStm.Position = 0;
-
+                ser.Serialize(sw, input);
                 XmlReaderSettings settings = new XmlReaderSettings();
                 settings.IgnoreWhitespace = true;
 
-                using (var xtr = XmlReader.Create(memStm, settings))
+                using (var xtr = XmlReader.Create(new StringReader(sw.ToString()), settings))
                 {
                     xd = new XmlDocument();
                     xd.Load(xtr);
